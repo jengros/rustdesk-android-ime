@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -95,9 +96,8 @@ void main() {
               )),
     )));
     await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('android-input-mode')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('실시간 입력').last);
+    await tester.tap(find.byKey(const ValueKey('android-input-mode')),
+        kind: PointerDeviceKind.mouse);
     await tester.pumpAndSettle();
     expect(remembered, isFalse);
     expect(focus.hasFocus, isTrue);
@@ -111,11 +111,12 @@ void main() {
       await tester.pump();
     }
     expect(remote, '가나');
-    await tester.tap(find.byKey(const ValueKey('android-input-mode')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('텍스트 전송').last);
+    await tester.tap(find.byKey(const ValueKey('android-input-mode')),
+        kind: PointerDeviceKind.mouse);
     await tester.pumpAndSettle();
     expect(remembered, isTrue);
+    expect(focus.hasFocus, isTrue);
+    expect(tester.testTextInput.hasAnyClients, isTrue);
     expect(draft.text, '보내지 않은 글');
     expect(remote, '가나');
     expect(tester.takeException(), isNull);

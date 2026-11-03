@@ -47,23 +47,25 @@ class _AndroidKeyboardPanelState extends State<AndroidKeyboardPanel> {
   }
 
   @override
-  Widget build(BuildContext context) => Material(
+  Widget build(BuildContext context) => TextFieldTapRegion(
+          child: Material(
         color: Theme.of(context).colorScheme.surface,
         elevation: 4,
         child: SafeArea(
           top: false,
           child: Row(children: [
-            PopupMenuButton<bool>(
-              key: const ValueKey('android-input-mode'),
-              tooltip: '입력 방식 선택',
-              enabled: !_sending,
-              initialValue: widget.buffered,
-              icon: Icon(widget.buffered ? Icons.text_fields : Icons.keyboard),
-              onSelected: widget.onModeChanged,
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: false, child: Text('실시간 입력')),
-                PopupMenuItem(value: true, child: Text('텍스트 전송')),
-              ],
+            ExcludeFocus(
+              child: IconButton(
+                key: const ValueKey('android-input-mode'),
+                tooltip: widget.buffered
+                    ? '텍스트 전송 모드 · 눌러서 실시간 입력'
+                    : '실시간 입력 모드 · 눌러서 텍스트 전송',
+                icon:
+                    Icon(widget.buffered ? Icons.text_fields : Icons.keyboard),
+                onPressed: _sending
+                    ? null
+                    : () => widget.onModeChanged(!widget.buffered),
+              ),
             ),
             Expanded(
               child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -111,5 +113,5 @@ class _AndroidKeyboardPanelState extends State<AndroidKeyboardPanel> {
             ],
           ]),
         ),
-      );
+      ));
 }
