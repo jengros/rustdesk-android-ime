@@ -4,59 +4,84 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_hbb/mobile/android_soft_keyboard.dart';
 
 void main() {
-  final sentinel = '1' * 1024;
-
-  test('Samsung Hangul commits survive composing-only changes', () {
-    var previous = sentinel;
-    var remote = '';
-    void apply(String text, TextRange composing) {
-      final edit = computeAndroidSoftKeyboardEdit(previous,
-          TextEditingValue(text: sentinel + text, composing: composing));
-      remote = String.fromCharCodes(remote.runes
-              .take(remote.runes.length - edit.deleteCount)) +
-          edit.insertedText;
-      previous = edit.committedText;
-    }
-    apply('ㄱ', TextRange(start: 1024, end: 1025));
-    expect(remote, '');
-    apply('가', TextRange(start: 1024, end: 1025));
-    expect(remote, '');
-    apply('가', TextRange.empty);
-    expect(remote, '가');
-    apply('가ㄴ', TextRange(start: 1025, end: 1026));
-    apply('가나', TextRange(start: 1025, end: 1026));
-    apply('가나다', TextRange(start: 1026, end: 1027));
-    apply('가나다', TextRange.empty);
-    expect(remote, '가나다');
-  });
-
-  test('backspace before typing preserves the sentinel and corrects text', () {
-    final back = computeAndroidSoftKeyboardEdit(sentinel,
-        TextEditingValue(text: sentinel.substring(1)));
-    expect(back.deleteCount, 1);
-    expect(back.insertedText, '');
-    final typed = computeAndroidSoftKeyboardEdit(back.committedText,
-        TextEditingValue(text: back.committedText + 'abc 가나다'));
-    expect(typed.insertedText, 'abc 가나다');
-    final corrected = computeAndroidSoftKeyboardEdit(sentinel + 'ㄱ',
-        TextEditingValue(text: sentinel + '가'));
-    expect(corrected.deleteCount, 1);
-    expect(corrected.insertedText, '가');
-  });
-
-  testWidgets('soft editor keys never reach remote physical-key handler',
+  testWidgets('Hangul composition is visible without space and no filler leaks',
       (tester) async {
+    var remote = '';
+    await tester.pumpWidget(MaterialApp(home: Material(
+      child: AndroidSoftKeyboardInput(
+        onText: (text) => remote += text,
+        onBackspace: () => remote = remote.characters.skipLast(1).join(),
+        onEnter: () => remote += '\n',
+      ),
+    )));
+    await tester.pump();
+    expect(tester.widget<EditableText>(find.byType(EditableText)).controller.text,
+        isEmpty);
+    for (final text in ['a', 'ab', 'abc ', 'abc ㄱ', 'abc 가',
+      'abc 가ㄴ', 'abc 가나', 'abc 가나ㄷ', 'abc 가나다']) {
+      tester.testTextInput.updateEditingValue(TextEditingValue(
+        text: text,
+        selection: TextSelection.collapsed(offset: text.length),
+        composing: TextRange(start: text.length - 1, end: text.length),
+      ));
+      await tester.pump();
+      expect(remote, text);
+    }
+    tester.testTextInput.updateEditingValue(const TextEditingValue(
+        text: 'abc 가나다', selection: TextSelection.collapsed(offset: 7)));
+    await tester.pump();
+    expect(remote, 'abc 가나다');
+  });
+
+  testWidgets('raw Backspace deletes existing and locally typed remote text',
+      (tester) async {
+    var remote = '기존';
+    await tester.pumpWidget(MaterialApp(home: Material(
+      child: AndroidSoftKeyboardInput(
+        onText: (text) => remote += text,
+        onBackspace: () => remote = remote.characters.skipLast(1).join(),
+        onEnter: () => remote += '\n',
+      ),
+    )));
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+    expect(remote, '기');
+    await tester.enterText(find.byType(TextField), 'abc 가나다');
+    expect(remote, '기abc 가나다');
+    await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+    expect(remote, '기abc 가나');
+    await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+    expect(remote, '기abc 가');
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    expect(remote, '기abc 가\n');
+    await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+    expect(remote, '기abc 가');
+  });
+
+  testWidgets('held Delete and Enter run once per event and real 1 is preserved',
+      (tester) async {
+    var remote = 'abcdef';
     var remoteKeys = 0;
-    await tester.pumpWidget(MaterialApp(home: Focus(
+    await tester.pumpWidget(MaterialApp(home: Material(child: Focus(
       onKeyEvent: (_, __) {
         remoteKeys++;
         return KeyEventResult.handled;
       },
-      child: const AndroidSoftKeyboardBoundary(
-          child: Material(child: TextField(autofocus: true))),
-    )));
+      child: AndroidSoftKeyboardInput(
+        onText: (text) => remote += text,
+        onBackspace: () => remote = remote.characters.skipLast(1).join(),
+        onEnter: () => remote += '\n',
+      ),
+    ))));
     await tester.pump();
-    await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.backspace);
+    await tester.sendKeyRepeatEvent(LogicalKeyboardKey.backspace);
+    await tester.sendKeyRepeatEvent(LogicalKeyboardKey.backspace);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.backspace);
+    expect(remote, 'abc');
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.enterText(find.byType(TextField), '1');
+    expect(remote, 'abc\n1');
     await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
     expect(remoteKeys, 0);
   });

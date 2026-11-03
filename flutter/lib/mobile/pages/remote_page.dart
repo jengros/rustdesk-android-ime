@@ -121,9 +121,6 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    if (isAndroid) {
-      _textController.addListener(_handleAndroidSoftKeyboardInput);
-    }
     gFFI.ffiModel.updateEventListener(sessionId, widget.id);
     gFFI.start(
       widget.id,
@@ -187,9 +184,6 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
 
   @override
   Future<void> dispose() async {
-    if (isAndroid) {
-      _textController.removeListener(_handleAndroidSoftKeyboardInput);
-    }
     HardwareKeyboard.instance.removeHandler(_handleLocalKeyEvent);
     WidgetsBinding.instance.removeObserver(this);
     // Close the session up-front. `gFFI.close()` below only calls `sessionClose`
@@ -371,28 +365,6 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
       bind.sessionInputString(sessionId: sessionId, value: newStr);
     } else {
       inputChar(newStr);
-    }
-  }
-
-  void _handleAndroidSoftKeyboardInput() {
-    if (!_showEdit || !inputModel.keyboardInputAllowed) return;
-    final edit = computeAndroidSoftKeyboardEdit(_value, _textController.value);
-    _value = edit.committedText;
-    for (var i = 0; i < edit.deleteCount; i++) {
-      inputModel.inputKey('VK_BACK');
-    }
-    if (_textController.text.isEmpty) {
-      _value = initText;
-      _textController.value = TextEditingValue(
-          text: initText,
-          selection: TextSelection.collapsed(offset: initText.length));
-    }
-    final content = edit.insertedText;
-    if (content.isEmpty) return;
-    if (content.length > 1 || content.runes.any((rune) => rune > 127)) {
-      bind.sessionInputString(sessionId: sessionId, value: content);
-    } else {
-      inputChar(content);
     }
   }
 
@@ -733,7 +705,15 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
       !gFFI.inputModel.relativeMouseMode.value;
 
   Widget _softKeyboardField(Widget child) => isAndroid
-      ? AndroidSoftKeyboardBoundary(child: child)
+      ? AndroidSoftKeyboardInput(
+          focusNode: _mobileFocusNode,
+          onText: (text) {
+            if (inputModel.keyboardInputAllowed) {
+              bind.sessionInputString(sessionId: sessionId, value: text);
+            }
+          },
+          onBackspace: () => inputChar('VK_BACK'),
+          onEnter: () => inputChar('VK_RETURN'))
       : child;
 
   Widget getBodyForMobile() {

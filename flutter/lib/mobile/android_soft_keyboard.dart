@@ -1,47 +1,137 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class AndroidSoftKeyboardEdit {
-  final String committedText;
   final int deleteCount;
   final String insertedText;
 
-  const AndroidSoftKeyboardEdit(
-      this.committedText, this.deleteCount, this.insertedText);
+  const AndroidSoftKeyboardEdit(this.deleteCount, this.insertedText);
 }
 
 AndroidSoftKeyboardEdit computeAndroidSoftKeyboardEdit(
-    String previous, TextEditingValue value) {
-  final composing = value.composing;
-  final current = value.isComposingRangeValid && !composing.isCollapsed
-      ? value.text.replaceRange(composing.start, composing.end, '')
-      : value.text;
-  // A paste can replace the whole hidden sentinel buffer.
-  if (previous.startsWith('1') &&
-      current.isNotEmpty &&
-      !current.startsWith('1')) {
-    previous = '';
-  }
-  final before = previous.runes.toList();
-  final after = current.runes.toList();
+    String previous, String current) {
+  final before = previous.characters.toList();
+  final after = current.characters.toList();
   var common = 0;
   while (common < before.length &&
       common < after.length &&
       before[common] == after[common]) {
     common++;
   }
-  return AndroidSoftKeyboardEdit(current, before.length - common,
-      String.fromCharCodes(after.skip(common)));
+  return AndroidSoftKeyboardEdit(
+      before.length - common, after.skip(common).join());
 }
 
-// Keep IME key events out of the remote physical-key handler while allowing
-// Android to perform the edit. Returning handled would swallow some IME edits.
-class AndroidSoftKeyboardBoundary extends StatelessWidget {
-  final Widget child;
+// This editor owns an empty buffer. The iOS sentinel controller must never be
+// attached to Android: an IME can select, compose, or replay its filler text.
+class AndroidSoftKeyboardInput extends StatefulWidget {
+  final FocusNode? focusNode;
+  final ValueChanged<String> onText;
+  final VoidCallback onBackspace;
+  final VoidCallback onEnter;
 
-  const AndroidSoftKeyboardBoundary({super.key, required this.child});
+  const AndroidSoftKeyboardInput({
+    super.key,
+    this.focusNode,
+    required this.onText,
+    required this.onBackspace,
+    required this.onEnter,
+  });
+
+  @override
+  State<AndroidSoftKeyboardInput> createState() =>
+      _AndroidSoftKeyboardInputState();
+}
+
+class _AndroidSoftKeyboardInputState extends State<AndroidSoftKeyboardInput> {
+  final _controller = TextEditingController();
+  String _previous = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_onEdit);
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_onEdit);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _reset() {
+    _previous = '';
+    _controller.value = const TextEditingValue(
+        selection: TextSelection.collapsed(offset: 0));
+  }
+
+  void _onEdit() {
+    final current = _controller.text;
+    if (current == _previous) return;
+    final edit = computeAndroidSoftKeyboardEdit(_previous, current);
+    _previous = current;
+    for (var i = 0; i < edit.deleteCount; i++) {
+      widget.onBackspace();
+    }
+    final lines = edit.insertedText.split('\n');
+    for (var i = 0; i < lines.length; i++) {
+      if (i > 0) widget.onEnter();
+      if (lines[i].isNotEmpty) widget.onText(lines[i]);
+    }
+    if (current.endsWith('\n')) _reset();
+  }
+
+  void _backspace() {
+    final value = _controller.value;
+    if (value.text.isEmpty) {
+      // Android emits raw Delete when there is no local text. It must still
+      // delete text that was already present on the remote PC.
+      widget.onBackspace();
+      return;
+    }
+    final selection = value.selection;
+    var start = selection.isValid ? selection.start : value.text.length;
+    final end = selection.isValid ? selection.end : value.text.length;
+    if (start == end) {
+      if (start == 0) return;
+      start -= value.text.substring(0, start).characters.last.length;
+    }
+    // Updating the same editor drives one diff and keeps the IME buffer in
+    // sync. Returning handled below prevents a second platform deletion.
+    _controller.value = TextEditingValue(
+        text: value.text.replaceRange(start, end, ''),
+        selection: TextSelection.collapsed(offset: start));
+  }
+
+  KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
+    final down = event is KeyDownEvent || event is KeyRepeatEvent;
+    if (event.logicalKey == LogicalKeyboardKey.backspace) {
+      if (down) _backspace();
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.enter ||
+        event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+      if (down) {
+        widget.onEnter();
+        _reset();
+      }
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.skipRemainingHandlers;
+  }
 
   @override
   Widget build(BuildContext context) => Focus(
-      onKeyEvent: (_, __) => KeyEventResult.skipRemainingHandlers,
-      child: child);
+      onKeyEvent: _onKeyEvent,
+      child: TextField(
+        controller: _controller,
+        focusNode: widget.focusNode,
+        autofocus: true,
+        autocorrect: false,
+        enableSuggestions: false,
+        maxLines: null,
+        keyboardType: TextInputType.multiline,
+        textInputAction: TextInputAction.newline,
+      ));
 }
