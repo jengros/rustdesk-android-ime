@@ -63,3 +63,4 @@ flutter/web/
 
 # Personal Android build intermediates
 /flutter/android/build/
+!/personal/icon-orange.svg

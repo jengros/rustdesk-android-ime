@@ -10,7 +10,7 @@
 - 새 글자는 Unicode 문자열 경로로 보낸다. 새 입력 위젯은 Android에만 연결하며 기존 iOS 및 소프트 키보드를 닫은 상태의 물리 키 경로는 유지한다.
 - 앱 ID: `com.carriez.flutter_hbb.kykpersonal`, 표시 이름: `RustDesk Personal`. 공식 앱과 함께 설치할 수 있다.
 
-현재 버전은 `1.5.1-kyk.5`이다. Flutter의 실제 TextField에 IME 편집 값과 raw 키를 전달하는 입력 테스트 6개로 Enter와 IME 확정 이벤트가 겹치는 순서, 중복 확정 알림, 연속 줄바꿈, 즉시 한글 갱신, 초기 버퍼 없음, 기존 PC 문자 삭제, 로컬 문자 삭제, 반복 삭제, Enter, 숫자 1 입력을 검증했다. 소프트 키보드가 열린 상태의 외부 물리 키보드 단축키는 별도 현장 검증 대상이다. 휴대폰은 연결하지 않았으며 실제 삼성 키보드에서의 개선 여부는 미확인이다.
+현재 버전은 `1.5.1-kyk.6`이다. kyk.6은 원본 SVG 도형을 유지하고 파랑/청록 그라데이션만 주황색으로 바꾼 Android 런처 아이콘 업데이트이다. 원본 벡터는 `personal/icon-orange.svg`에 보관한다. Flutter의 실제 TextField에 IME 편집 값과 raw 키를 전달하는 입력 테스트 6개로 Enter와 IME 확정 이벤트가 겹치는 순서, 중복 확정 알림, 연속 줄바꿈, 즉시 한글 갱신, 초기 버퍼 없음, 기존 PC 문자 삭제, 로컬 문자 삭제, 반복 삭제, Enter, 숫자 1 입력을 검증했다. 소프트 키보드가 열린 상태의 외부 물리 키보드 단축키는 별도 현장 검증 대상이다. 휴대폰은 연결하지 않았으며, 사용자가 갤럭시 휴대폰과 삼성 키보드에서 직접 검증하여 개선을 확인했다.
 
 ## 빌드 구성
 
@@ -26,7 +26,7 @@ Flutter/Dart UI와 Android Kotlin 앱은 수정 소스에서 release APK로 빌�
 
 ## 로컬 재빌드
 
-`personal/build-android.ps1`은 이 PC에 준비한 도구 폴더를 사용한다. 의존성 확인, 3개 회귀 테스트, 변경 파일 분석, arm64 release APK 생성을 순서대로 수행한다.
+`personal/build-android.ps1`은 이 PC에 준비한 도구 폴더를 사용한다. 의존성 확인, 6개 회귀 테스트, 변경 파일 분석, arm64 release APK 생성을 순서대로 수행한다.
 
 ```powershell
 pwsh -File personal/build-android.ps1
