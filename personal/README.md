@@ -10,7 +10,7 @@
 - 새 글자는 Unicode 문자열 경로로 보낸다. 새 입력 위젯은 Android에만 연결하며 기존 iOS 및 소프트 키보드를 닫은 상태의 물리 키 경로는 유지한다.
 - 앱 ID: `com.carriez.flutter_hbb.kykpersonal`, 표시 이름: `RustDesk Personal`. 공식 앱과 함께 설치할 수 있다.
 
-현재 버전은 `1.5.1-kyk.9`이다. kyk.6은 원본 SVG 도형을 유지하고 파랑/청록 그라데이션만 주황색으로 바꾼 Android 런처 아이콘 업데이트이다. 원본 벡터는 `personal/icon-orange.svg`에 보관한다. Flutter의 실제 TextField에 IME 편집 값과 raw 키를 전달하는 입력 테스트 6개로 Enter와 IME 확정 이벤트가 겹치는 순서, 중복 확정 알림, 연속 줄바꿈, 즉시 한글 갱신, 초기 버퍼 없음, 기존 PC 문자 삭제, 로컬 문자 삭제, 반복 삭제, Enter, 숫자 1 입력을 검증했다. 소프트 키보드가 열린 상태의 외부 물리 키보드 단축키는 별도 현장 검증 대상이다. 휴대폰은 연결하지 않았으며, 사용자가 갤럭시 휴대폰과 삼성 키보드에서 직접 검증하여 개선을 확인했다.
+현재 버전은 `1.5.1-kyk.10`이다. kyk.6은 원본 SVG 도형을 유지하고 파랑/청록 그라데이션만 주황색으로 바꾼 Android 런처 아이콘 업데이트이다. 원본 벡터는 `personal/icon-orange.svg`에 보관한다. Flutter의 실제 TextField에 IME 편집 값과 raw 키를 전달하는 입력 테스트 6개로 Enter와 IME 확정 이벤트가 겹치는 순서, 중복 확정 알림, 연속 줄바꿈, 즉시 한글 갱신, 초기 버퍼 없음, 기존 PC 문자 삭제, 로컬 문자 삭제, 반복 삭제, Enter, 숫자 1 입력을 검증했다. 소프트 키보드가 열린 상태의 외부 물리 키보드 단축키는 별도 현장 검증 대상이다. 휴대폰은 연결하지 않았으며, 사용자가 갤럭시 휴대폰과 삼성 키보드에서 직접 검증하여 개선을 확인했다.
 
 ## Android 입력 방식 선택 (kyk.7)
 
@@ -39,7 +39,7 @@ Flutter/Dart UI와 Android Kotlin 앱은 수정 소스에서 release APK로 빌�
 
 ## 로컬 재빌드
 
-`personal/build-android.ps1`은 이 PC에 준비한 도구 폴더를 사용한다. 의존성 확인, 12개 회귀 테스트, 변경 파일 분석, arm64 release APK 생성을 순서대로 수행한다.
+`personal/build-android.ps1`은 이 PC에 준비한 도구 폴더를 사용한다. 의존성 확인, 13개 회귀 테스트, 변경 파일 분석, arm64 release APK 생성을 순서대로 수행한다.
 
 ```powershell
 pwsh -File personal/build-android.ps1
@@ -113,3 +113,9 @@ Android 연결 화면을 열면 기존 "시작 시 업데이트 확인" 설정�
 알림을 누르면 기존 비공개 Drive 파일을 외부 브라우저/Drive 앱으로 연다. 필요하면 Google 로그인 후 APK를 내려받아 Android 설치 확인을 진행한다. 앱 내부에 Google 인증·토큰을 추가하지 않으며 APK 설치 권한도 추가하지 않는다. APK는 ARM64용이고 같은 앱 ID·서명을 유지한다. 이번 빌드는 자동 업데이트 알림 추가이며 앞서 보고된 buffered raw Backspace 경로는 아직 수정하지 않았다.
 
 배포 시 APK 검증 → 기존 Drive 파일 교체 및 재조회 → 공개 버전 JSON 갱신 및 재조회 순서로 처리한다. APK를 교체하기 전에 버전 번호를 먼저 올리지 않는다. JSON에는 schema, package_id, version, download_url만 기록한다. 다운로드 링크는 기존 Drive 파일로 고정 검증한다. 기본 build number 78, ARM64 versionCode 2078.
+
+## kyk.10: 텍스트 전송 모드 키보드 Backspace
+
+kyk.7~9의 buffered 경로는 모든 raw 키를 skipRemainingHandlers로 반환해 Flutter TextField의 기본 삭제 단축키까지 막았다. IME가 deleteSurroundingText 대신 KEYCODE_DEL을 전달하면 입력칸이 지워지지 않을 수 있었다. 기존 에뮬레이터 삭제 시험은 deleteSurroundingText 경로만 사용했다.
+
+buffered Backspace만 ignored로 반환하여 TextField의 기본 로컬 편집이 처리하도록 수정했다. 선택 범위·한글 조합·읽기 전용 처리는 기본 편집 경로를 따른다. 다른 raw 키의 격리와 실시간 입력 경로는 유지한다. 빈 입력칸의 키보드 Backspace는 원격 삭제를 보내지 않으며, 입력줄 오른쪽 Backspace는 계속 원격 삭제를 보낸다. 수정 전 실패한 조합 중 한글 삭제 회귀 테스트를 추가했고 선택 삭제·빈 입력·읽기 전용 및 원격 이벤트 없음도 같은 테스트로 확인한다. 기본 build number 79, ARM64 versionCode 2079.

@@ -147,7 +147,12 @@ class _AndroidSoftKeyboardInputState extends State<AndroidSoftKeyboardInput> {
   }
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
-    if (widget.buffered) return KeyEventResult.skipRemainingHandlers;
+    if (widget.buffered) {
+      // Let TextField's local editing shortcuts handle raw IME Delete events.
+      return event.logicalKey == LogicalKeyboardKey.backspace
+          ? KeyEventResult.ignored
+          : KeyEventResult.skipRemainingHandlers;
+    }
     final down = event is KeyDownEvent || event is KeyRepeatEvent;
     if (event.logicalKey == LogicalKeyboardKey.backspace) {
       if (down) _backspace();

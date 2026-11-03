@@ -4,6 +4,41 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_hbb/mobile/android_soft_keyboard.dart';
 
 void main() {
+  testWidgets('buffered raw Backspace edits only the local draft', (tester) async {
+    final draft = TextEditingController();
+    var remoteEvents = 0;
+    Widget editor({bool readOnly = false}) => MaterialApp(home: Material(
+      child: AndroidSoftKeyboardInput(
+        buffered: true,
+        readOnly: readOnly,
+        draft: draft,
+        onText: (_) => remoteEvents++,
+        onBackspace: () => remoteEvents++,
+        onEnter: () => remoteEvents++,
+      ),
+    ));
+    await tester.pumpWidget(editor());
+    await tester.pump();
+    tester.testTextInput.updateEditingValue(const TextEditingValue(
+        text: 'abc 가나다', selection: TextSelection.collapsed(offset: 7),
+        composing: TextRange(start: 6, end: 7)));
+    await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+    expect(draft.text, 'abc 가나');
+    draft.value = const TextEditingValue(text: 'abc 가나', selection: TextSelection(baseOffset: 4, extentOffset: 6));
+    await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+    expect(draft.text, 'abc ');
+    draft.clear();
+    await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+    expect(draft.text, isEmpty);
+    draft.value = const TextEditingValue(text: '가나', selection: TextSelection.collapsed(offset: 2));
+    await tester.pumpWidget(editor(readOnly: true));
+    await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+    expect(draft.text, '가나');
+    expect(remoteEvents, 0);
+    await tester.pumpWidget(const SizedBox());
+    draft.dispose();
+  });
+
   testWidgets('Hangul composition is visible without space and no filler leaks',
       (tester) async {
     var remote = '';
