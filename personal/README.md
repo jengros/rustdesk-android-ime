@@ -10,7 +10,7 @@
 - 새 글자는 Unicode 문자열 경로로 보낸다. 새 입력 위젯은 Android에만 연결하며 기존 iOS 및 소프트 키보드를 닫은 상태의 물리 키 경로는 유지한다.
 - 앱 ID: `com.carriez.flutter_hbb.kykpersonal`, 표시 이름: `RustDesk Personal`. 공식 앱과 함께 설치할 수 있다.
 
-현재 버전은 `1.5.1-kyk.7`이다. kyk.6은 원본 SVG 도형을 유지하고 파랑/청록 그라데이션만 주황색으로 바꾼 Android 런처 아이콘 업데이트이다. 원본 벡터는 `personal/icon-orange.svg`에 보관한다. Flutter의 실제 TextField에 IME 편집 값과 raw 키를 전달하는 입력 테스트 6개로 Enter와 IME 확정 이벤트가 겹치는 순서, 중복 확정 알림, 연속 줄바꿈, 즉시 한글 갱신, 초기 버퍼 없음, 기존 PC 문자 삭제, 로컬 문자 삭제, 반복 삭제, Enter, 숫자 1 입력을 검증했다. 소프트 키보드가 열린 상태의 외부 물리 키보드 단축키는 별도 현장 검증 대상이다. 휴대폰은 연결하지 않았으며, 사용자가 갤럭시 휴대폰과 삼성 키보드에서 직접 검증하여 개선을 확인했다.
+현재 버전은 `1.5.1-kyk.8`이다. kyk.6은 원본 SVG 도형을 유지하고 파랑/청록 그라데이션만 주황색으로 바꾼 Android 런처 아이콘 업데이트이다. 원본 벡터는 `personal/icon-orange.svg`에 보관한다. Flutter의 실제 TextField에 IME 편집 값과 raw 키를 전달하는 입력 테스트 6개로 Enter와 IME 확정 이벤트가 겹치는 순서, 중복 확정 알림, 연속 줄바꿈, 즉시 한글 갱신, 초기 버퍼 없음, 기존 PC 문자 삭제, 로컬 문자 삭제, 반복 삭제, Enter, 숫자 1 입력을 검증했다. 소프트 키보드가 열린 상태의 외부 물리 키보드 단축키는 별도 현장 검증 대상이다. 휴대폰은 연결하지 않았으며, 사용자가 갤럭시 휴대폰과 삼성 키보드에서 직접 검증하여 개선을 확인했다.
 
 ## Android 입력 방식 선택 (kyk.7)
 
@@ -101,3 +101,7 @@ kyk.5는 Android 소프트 키보드의 문자·Backspace·Enter를 세션별 �
 기본 build number 74, ARM64 split APK versionCode 2074, 버전 이름 `1.5.1-kyk.5`. 같은 앱 ID·서명과 접근성 서비스 제거를 유지한다.
 
 브리지 처리 근거: https://github.com/fzyzcjy/flutter_rust_bridge/blob/v1.80.1/frb_rust/src/handler.rs
+
+## kyk.8: 입력줄 오른쪽 Enter 동작
+
+사용자 요청에 따라 입력줄 오른쪽 ↵는 초안이 있으면 문자열만 전송하고, 초안이 비어 있으면 원격 Enter를 보낸다. 전송 중 중복 요청 차단 및 성공 후 초안 삭제는 기존 제출 경로를 공유한다. 삼성 키보드 자체의 전송 동작은 기존과 같다. Backspace는 원격 삭제만 보낸다. 기존 kyk.7 설명의 오른쪽 Enter 단독 전송 동작은 kyk.8에서 이 규칙으로 대체한다. 기본 build number 77, ARM64 versionCode 2077.

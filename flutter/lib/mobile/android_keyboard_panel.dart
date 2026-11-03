@@ -104,10 +104,18 @@ class _AndroidKeyboardPanelState extends State<AndroidKeyboardPanel> {
               ),
               ExcludeFocus(
                 child: IconButton(
-                  tooltip: '원격 Enter 보내기',
+                  tooltip: '문자 전송 / 빈 입력이면 Enter 보내기',
                   icon: const Icon(Icons.keyboard_return),
                   onPressed:
-                      widget.enabled && !_sending ? widget.onEnter : null,
+                      widget.enabled && !_sending
+                          ? () {
+                              if (widget.draft.text.isEmpty) {
+                                widget.onEnter();
+                              } else {
+                                _submit();
+                              }
+                            }
+                          : null,
                 ),
               ),
             ],

@@ -125,7 +125,7 @@ void main() {
     focus.dispose();
   });
 
-  testWidgets('remote keys preserve draft; blocked or failed sends preserve it',
+  testWidgets('right Enter submits text or sends remote Enter when empty',
       (tester) async {
     tester.view.physicalSize = const Size(320, 640);
     tester.view.devicePixelRatio = 1;
@@ -149,7 +149,8 @@ void main() {
             onModeChanged: (_) {},
             draft: draft,
             focusNode: focus,
-            onSubmit: (_) async {
+            onSubmit: (text) async {
+              expect(text, 'abc 가나다');
               attempts++;
             },
             onText: (_) => fail('Draft must not go through live input'),
@@ -161,18 +162,23 @@ void main() {
     )));
     await tester.pump();
     await tester.tap(find.byTooltip('원격 Backspace 보내기'));
-    await tester.tap(find.byTooltip('원격 Enter 보내기'));
-    expect(keys, ['back', 'enter']);
+    await tester.tap(find.byTooltip('문자 전송 / 빈 입력이면 Enter 보내기'));
+    expect(keys, ['back']);
     expect(draft.text, 'abc 가나다');
-    await tester.testTextInput.receiveAction(TextInputAction.send);
     await tester.pump();
     expect(attempts, 1);
     // The session did not confirm a successful send, so it kept the draft.
     expect(draft.text, 'abc 가나다');
+    draft.clear();
+    await tester.pump();
+    await tester.tap(find.byTooltip('문자 전송 / 빈 입력이면 Enter 보내기'));
+    expect(keys, ['back', 'enter']);
+    expect(attempts, 1);
+    draft.text = 'abc 가나다';
     update(() => enabled = false);
     await tester.pump();
     await tester.tap(find.byTooltip('원격 Backspace 보내기'));
-    await tester.tap(find.byTooltip('원격 Enter 보내기'));
+    await tester.tap(find.byTooltip('문자 전송 / 빈 입력이면 Enter 보내기'));
     expect(keys, ['back', 'enter']);
     expect(draft.text, 'abc 가나다');
     expect(tester.takeException(), isNull);
