@@ -55,6 +55,11 @@ class AndroidSoftKeyboardInput extends StatefulWidget {
   final ValueChanged<String> onText;
   final VoidCallback onBackspace;
   final VoidCallback onEnter;
+  final bool buffered;
+  final bool enabled;
+  final bool readOnly;
+  final TextEditingController? draft;
+  final ValueChanged<String>? onSubmitted;
 
   const AndroidSoftKeyboardInput({
     super.key,
@@ -62,6 +67,11 @@ class AndroidSoftKeyboardInput extends StatefulWidget {
     required this.onText,
     required this.onBackspace,
     required this.onEnter,
+    this.buffered = false,
+    this.enabled = true,
+    this.readOnly = false,
+    this.draft,
+    this.onSubmitted,
   });
 
   @override
@@ -77,6 +87,19 @@ class _AndroidSoftKeyboardInputState extends State<AndroidSoftKeyboardInput> {
   void initState() {
     super.initState();
     _controller.addListener(_onEdit);
+  }
+
+  @override
+  void didUpdateWidget(covariant AndroidSoftKeyboardInput oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.buffered != widget.buffered) {
+      // Retain the same TextField/IME connection when switching modes, but
+      // start a new live diff after text may have been sent from the draft.
+      _controller.removeListener(_onEdit);
+      _controller.clear();
+      _previous = '';
+      _controller.addListener(_onEdit);
+    }
   }
 
   @override
@@ -124,6 +147,7 @@ class _AndroidSoftKeyboardInputState extends State<AndroidSoftKeyboardInput> {
   }
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
+    if (widget.buffered) return KeyEventResult.skipRemainingHandlers;
     final down = event is KeyDownEvent || event is KeyRepeatEvent;
     if (event.logicalKey == LogicalKeyboardKey.backspace) {
       if (down) _backspace();
@@ -139,13 +163,24 @@ class _AndroidSoftKeyboardInputState extends State<AndroidSoftKeyboardInput> {
   Widget build(BuildContext context) => Focus(
       onKeyEvent: _onKeyEvent,
       child: TextField(
-        controller: _controller,
+        controller: widget.buffered ? widget.draft : _controller,
+        enabled: widget.enabled,
+        readOnly: widget.readOnly,
         focusNode: widget.focusNode,
         autofocus: true,
         autocorrect: false,
         enableSuggestions: false,
-        maxLines: null,
-        keyboardType: TextInputType.multiline,
-        textInputAction: TextInputAction.newline,
+        maxLines: widget.buffered ? 1 : null,
+        keyboardType:
+            widget.buffered ? TextInputType.text : TextInputType.multiline,
+        textInputAction:
+            widget.buffered ? TextInputAction.send : TextInputAction.newline,
+        decoration: widget.buffered
+            ? const InputDecoration(
+                hintText: '텍스트 입력 후 키보드 Enter로 전송', isDense: true)
+            : null,
+        onTapOutside: widget.buffered ? (_) {} : null,
+        onEditingComplete: widget.buffered ? () {} : null,
+        onSubmitted: widget.buffered ? widget.onSubmitted : null,
       ));
 }

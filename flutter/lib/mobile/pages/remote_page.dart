@@ -25,6 +25,7 @@ import '../../models/shortcut_model.dart';
 import '../../utils/image.dart';
 import '../widgets/dialog.dart';
 import '../android_soft_keyboard.dart';
+import '../android_keyboard_panel.dart';
 import '../widgets/custom_scale_widget.dart';
 
 final initText = '1' * 1024;
@@ -92,6 +93,9 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
   bool _showGestureHelp = false;
   String _value = '';
   AndroidKeyboardQueue? _androidKeyboardQueue;
+  static const _androidInputModeOption = 'personal-android-input-mode';
+  bool _androidBufferedInput = false;
+  final _androidDraft = TextEditingController();
   Orientation? _currentOrientation;
   final _uniqueKey = UniqueKey();
   Timer? _iosKeyboardWorkaroundTimer;
@@ -122,6 +126,10 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    if (isAndroid) {
+      _androidBufferedInput =
+          bind.getLocalFlutterOption(k: _androidInputModeOption) == 'buffered';
+    }
     gFFI.ffiModel.updateEventListener(sessionId, widget.id);
     gFFI.start(
       widget.id,
@@ -186,6 +194,7 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
   @override
   Future<void> dispose() async {
     _androidKeyboardQueue?.close();
+    _androidDraft.dispose();
     HardwareKeyboard.instance.removeHandler(_handleLocalKeyEvent);
     WidgetsBinding.instance.removeObserver(this);
     // Close the session up-front. `gFFI.close()` below only calls `sessionClose`
@@ -546,7 +555,7 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
                 ],
               )),
           body: Obx(
-            () => getRawPointerAndKeyBody(Overlay(
+            () => _withAndroidKeyboard(getRawPointerAndKeyBody(Overlay(
               initialEntries: [
                 OverlayEntry(builder: (context) {
                   return Container(
@@ -578,7 +587,7 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
                   );
                 })
               ],
-            )),
+            ))),
           )),
     );
   }
@@ -741,13 +750,50 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
         command: command));
   }
 
-  Widget _softKeyboardField(Widget child) => isAndroid
-      ? AndroidSoftKeyboardInput(
+  void _setAndroidInputMode(bool buffered) {
+    setState(() => _androidBufferedInput = buffered);
+    bind
+        .setLocalFlutterOption(
+            k: _androidInputModeOption, v: buffered ? 'buffered' : 'live')
+        .catchError((Object error) {
+      if (mounted) showToast('입력 방식 설정을 저장하지 못했습니다.');
+    });
+  }
+
+  Future<void> _sendAndroidDraft(String text) async {
+    final model = inputModel;
+    if (!model.keyboardInputAllowed || !model.keyboardPerm || model.isViewCamera) {
+      return;
+    }
+    final targetSession = sessionId;
+    var sent = false;
+    await _androidInput.add(() async {
+      await bind.sessionInputString(sessionId: targetSession, value: text);
+      sent = true;
+    });
+    if (mounted && sent && _androidDraft.text == text) _androidDraft.clear();
+  }
+
+  Widget _withAndroidKeyboard(Widget remoteBody) {
+    if (!isAndroid) return remoteBody;
+    return Column(children: [
+      Expanded(child: remoteBody),
+      if (_showEdit)
+        AndroidKeyboardPanel(
+          buffered: _androidBufferedInput,
+          enabled: inputModel.keyboardInputAllowed &&
+              inputModel.keyboardPerm &&
+              !inputModel.isViewCamera,
+          onModeChanged: _setAndroidInputMode,
+          draft: _androidDraft,
           focusNode: _mobileFocusNode,
+          onSubmit: _sendAndroidDraft,
           onText: _queueAndroidText,
           onBackspace: () => _queueAndroidKey('VK_BACK'),
-          onEnter: () => _queueAndroidKey('VK_RETURN'))
-      : child;
+          onEnter: () => _queueAndroidKey('VK_RETURN'),
+        ),
+    ]);
+  }
 
   Widget getBodyForMobile() {
     return Container(
@@ -771,9 +817,9 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
             SizedBox(
               width: 0,
               height: 0,
-              child: !_showEdit
+              child: !_showEdit || isAndroid
                   ? Container()
-                  : _softKeyboardField(TextFormField(
+                  : TextFormField(
                       textInputAction: TextInputAction.newline,
                       autocorrect: false,
                       // Flutter 3.16.9 Android.
@@ -795,8 +841,8 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
                       //      2. The button will trigger `onKeyEvent` if the text field is empty.
                       // ko/zh/ja input method: the button will trigger `onKeyEvent`
                       //                     and the event will not popup if `KeyEventResult.handled` is returned.
-                      onChanged: isAndroid ? null : handleSoftKeyboardInput,
-                    ).workaroundFreezeLinuxMint()),
+                      onChanged: handleSoftKeyboardInput,
+                    ).workaroundFreezeLinuxMint(),
             ),
           ];
           if (showCursorPaint) {
