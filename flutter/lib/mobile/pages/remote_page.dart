@@ -91,6 +91,7 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
   bool _showBar = !isWebDesktop;
   bool _showGestureHelp = false;
   String _value = '';
+  AndroidKeyboardQueue? _androidKeyboardQueue;
   Orientation? _currentOrientation;
   final _uniqueKey = UniqueKey();
   Timer? _iosKeyboardWorkaroundTimer;
@@ -184,6 +185,7 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
 
   @override
   Future<void> dispose() async {
+    _androidKeyboardQueue?.close();
     HardwareKeyboard.instance.removeHandler(_handleLocalKeyEvent);
     WidgetsBinding.instance.removeObserver(this);
     // Close the session up-front. `gFFI.close()` below only calls `sessionClose`
@@ -704,16 +706,47 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
       !gFFI.canvasModel.cursorEmbedded &&
       !gFFI.inputModel.relativeMouseMode.value;
 
+  AndroidKeyboardQueue get _androidInput => _androidKeyboardQueue ??=
+      AndroidKeyboardQueue(onError: (_) {
+        if (mounted) {
+          showToast('입력 전송에 실패했습니다. 연결을 닫고 다시 열어주세요.');
+        }
+      });
+
+  void _queueAndroidText(String text) {
+    if (!inputModel.keyboardInputAllowed) return;
+    final targetSession = sessionId;
+    _androidInput.add(() =>
+        bind.sessionInputString(sessionId: targetSession, value: text));
+  }
+
+  void _queueAndroidKey(String name) {
+    final model = inputModel;
+    if (!model.keyboardInputAllowed || !model.keyboardPerm || model.isViewCamera) {
+      return;
+    }
+    final targetSession = sessionId;
+    final alt = model.alt;
+    final ctrl = model.ctrl;
+    final shift = model.shift;
+    final command = model.command;
+    _androidInput.add(() => bind.sessionInputKey(
+        sessionId: targetSession,
+        name: name,
+        down: false,
+        press: true,
+        alt: alt,
+        ctrl: ctrl,
+        shift: shift,
+        command: command));
+  }
+
   Widget _softKeyboardField(Widget child) => isAndroid
       ? AndroidSoftKeyboardInput(
           focusNode: _mobileFocusNode,
-          onText: (text) {
-            if (inputModel.keyboardInputAllowed) {
-              bind.sessionInputString(sessionId: sessionId, value: text);
-            }
-          },
-          onBackspace: () => inputChar('VK_BACK'),
-          onEnter: () => inputChar('VK_RETURN'))
+          onText: _queueAndroidText,
+          onBackspace: () => _queueAndroidKey('VK_BACK'),
+          onEnter: () => _queueAndroidKey('VK_RETURN'))
       : child;
 
   Widget getBodyForMobile() {

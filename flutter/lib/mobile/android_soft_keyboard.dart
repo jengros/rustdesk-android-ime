@@ -1,6 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+// Normal Flutter/Rust bridge calls run on separate workers. A replacement
+// must finish enqueueing its Delete before the following Unicode text starts.
+class AndroidKeyboardQueue {
+  final ValueChanged<Object> onError;
+  Future<void> _tail = Future<void>.value();
+  bool _closed = false;
+  bool _failed = false;
+
+  AndroidKeyboardQueue({required this.onError});
+
+  Future<void> add(Future<void> Function() send) {
+    _tail = _tail.then((_) async {
+      if (_closed || _failed) return;
+      try {
+        await send();
+      } catch (error) {
+        _failed = true;
+        onError(error);
+      }
+    });
+    return _tail;
+  }
+
+  void close() => _closed = true;
+}
+
 class AndroidSoftKeyboardEdit {
   final int deleteCount;
   final String insertedText;

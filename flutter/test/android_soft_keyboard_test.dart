@@ -139,4 +139,51 @@ void main() {
     }
   });
 
+  test('rapid Hangul replacements await Delete before Unicode completion', () async {
+    var remote = '';
+    var previous = '';
+    var active = 0;
+    var peak = 0;
+    final errors = <Object>[];
+    final queue = AndroidKeyboardQueue(onError: errors.add);
+    var completed = Future<void>.value();
+    Future<void> send(void Function() action, int delay) async {
+      active++;
+      if (active > peak) peak = active;
+      await Future<void>.delayed(Duration(milliseconds: delay));
+      action();
+      active--;
+    }
+    for (final value in ['ㄱ', '가', '간', '가나', '가나다', '가나다 동해물과 백두산이']) {
+      final edit = computeAndroidSoftKeyboardEdit(previous, value);
+      previous = value;
+      for (var i = 0; i < edit.deleteCount; i++) {
+        completed = queue.add(() => send(
+            () => remote = remote.characters.skipLast(1).join(), 8));
+      }
+      if (edit.insertedText.isNotEmpty) {
+        completed = queue.add(() => send(() => remote += edit.insertedText, 1));
+      }
+    }
+    await completed;
+    expect(remote, '가나다 동해물과 백두산이');
+    expect(peak, 1);
+    expect(errors, isEmpty);
+  });
+
+  test('input failure stops later commands and closed queues send nothing', () async {
+    final errors = <Object>[];
+    final queue = AndroidKeyboardQueue(onError: errors.add);
+    var sent = 0;
+    queue.add(() async => throw StateError('send failed'));
+    await queue.add(() async { sent++; });
+    expect(errors, hasLength(1));
+    expect(sent, 0);
+    final closed = AndroidKeyboardQueue(onError: errors.add);
+    closed.add(() async { sent++; });
+    closed.close();
+    await closed.add(() async { sent++; });
+    expect(sent, 0);
+  });
+
 }
