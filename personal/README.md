@@ -46,3 +46,13 @@ APK 출력: `flutter/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`.
 참고 수정안: https://github.com/rustdesk/rustdesk/pull/15429 및 https://github.com/rustdesk/rustdesk/pull/14495 . 두 PR을 그대로 병합한 것이 아니라 개인용 Android 경로에 한정해 구현했다.
 
 AGPL-3.0 및 원본 저작권 고지는 원본 저장소의 LICENCE를 따른다.
+
+## 개인용 두 번째 빌드: 불필요한 접근성 기능 제거
+
+`1.5.1-kyk.2`에서는 AndroidManifest의 InputService 접근성 서비스 등록을 제거했다. Android가 앱을 접근성 서비스로 인식하거나 해당 기능을 켤 수 없게 되므로, 다른 기기에서 이 휴대폰에 키보드·터치 입력을 보내는 기능은 사용할 수 없다. 휴대폰에서 PC를 조작하는 연결과 앞서 수정한 삼성 키보드 입력 경로는 이 서비스를 사용하지 않는다.
+
+첫 빌드는 Google Play 프로텍트에서 민감한 정보 접근 권한을 이유로 설치 차단되었다. Google 공식 개발자 안내상 인터넷에서 받은 APK의 접근성 서비스 선언은 설치 차단 대상이 될 수 있다. 이 수정은 사용하지 않는 기능을 실제 제거하는 권한 축소이며, 보호 기능이나 검사를 끄지 않는다. 서비스 등록이 없는지는 완성 APK의 병합된 manifest에서 확인한다. Google이 새 파일의 설치를 허용하는지는 실제 휴대폰에서 확인해야 한다.
+
+버전 이름은 `1.5.1-kyk.2`, 기본 build number는 71이며 ARM64 split APK의 실제 versionCode는 2071이다. 공식 앱과 분리된 기존 개인용 앱 ID 및 같은 로컬 서명키를 유지한다.
+
+참고: https://developers.google.com/android/play-protect/warning-dev-guidance
