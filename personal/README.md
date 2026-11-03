@@ -10,7 +10,7 @@
 - 새 글자는 Unicode 문자열 경로로 보낸다. 새 입력 위젯은 Android에만 연결하며 기존 iOS 및 소프트 키보드를 닫은 상태의 물리 키 경로는 유지한다.
 - 앱 ID: `com.carriez.flutter_hbb.kykpersonal`, 표시 이름: `RustDesk Personal`. 공식 앱과 함께 설치할 수 있다.
 
-현재 버전은 `1.5.1-kyk.8`이다. kyk.6은 원본 SVG 도형을 유지하고 파랑/청록 그라데이션만 주황색으로 바꾼 Android 런처 아이콘 업데이트이다. 원본 벡터는 `personal/icon-orange.svg`에 보관한다. Flutter의 실제 TextField에 IME 편집 값과 raw 키를 전달하는 입력 테스트 6개로 Enter와 IME 확정 이벤트가 겹치는 순서, 중복 확정 알림, 연속 줄바꿈, 즉시 한글 갱신, 초기 버퍼 없음, 기존 PC 문자 삭제, 로컬 문자 삭제, 반복 삭제, Enter, 숫자 1 입력을 검증했다. 소프트 키보드가 열린 상태의 외부 물리 키보드 단축키는 별도 현장 검증 대상이다. 휴대폰은 연결하지 않았으며, 사용자가 갤럭시 휴대폰과 삼성 키보드에서 직접 검증하여 개선을 확인했다.
+현재 버전은 `1.5.1-kyk.9`이다. kyk.6은 원본 SVG 도형을 유지하고 파랑/청록 그라데이션만 주황색으로 바꾼 Android 런처 아이콘 업데이트이다. 원본 벡터는 `personal/icon-orange.svg`에 보관한다. Flutter의 실제 TextField에 IME 편집 값과 raw 키를 전달하는 입력 테스트 6개로 Enter와 IME 확정 이벤트가 겹치는 순서, 중복 확정 알림, 연속 줄바꿈, 즉시 한글 갱신, 초기 버퍼 없음, 기존 PC 문자 삭제, 로컬 문자 삭제, 반복 삭제, Enter, 숫자 1 입력을 검증했다. 소프트 키보드가 열린 상태의 외부 물리 키보드 단축키는 별도 현장 검증 대상이다. 휴대폰은 연결하지 않았으며, 사용자가 갤럭시 휴대폰과 삼성 키보드에서 직접 검증하여 개선을 확인했다.
 
 ## Android 입력 방식 선택 (kyk.7)
 
@@ -39,7 +39,7 @@ Flutter/Dart UI와 Android Kotlin 앱은 수정 소스에서 release APK로 빌�
 
 ## 로컬 재빌드
 
-`personal/build-android.ps1`은 이 PC에 준비한 도구 폴더를 사용한다. 의존성 확인, 9개 회귀 테스트, 변경 파일 분석, arm64 release APK 생성을 순서대로 수행한다.
+`personal/build-android.ps1`은 이 PC에 준비한 도구 폴더를 사용한다. 의존성 확인, 12개 회귀 테스트, 변경 파일 분석, arm64 release APK 생성을 순서대로 수행한다.
 
 ```powershell
 pwsh -File personal/build-android.ps1
@@ -105,3 +105,11 @@ kyk.5는 Android 소프트 키보드의 문자·Backspace·Enter를 세션별 �
 ## kyk.8: 입력줄 오른쪽 Enter 동작
 
 사용자 요청에 따라 입력줄 오른쪽 ↵는 초안이 있으면 문자열만 전송하고, 초안이 비어 있으면 원격 Enter를 보낸다. 전송 중 중복 요청 차단 및 성공 후 초안 삭제는 기존 제출 경로를 공유한다. 삼성 키보드 자체의 전송 동작은 기존과 같다. Backspace는 원격 삭제만 보낸다. 기존 kyk.7 설명의 오른쪽 Enter 단독 전송 동작은 kyk.8에서 이 규칙으로 대체한다. 기본 build number 77, ARM64 versionCode 2077.
+
+## kyk.9: 개인용 업데이트 알림
+
+Android 연결 화면을 열면 기존 "시작 시 업데이트 확인" 설정에 따라 공개 GitHub `personal/update.json`을 최대 8초 동안 조회한다. 현재 Android PackageInfo 버전과 새 개인용 버전을 숫자로 비교하고, 새 버전이 있을 때만 다운로드 알림을 표시한다. 공식 RustDesk 다운로드 배너 대신 개인용 알림을 사용하며 다른 플랫폼 경로는 유지한다. 버전 정보가 없거나 손상됐거나 통신에 실패하면 원격 접속을 방해하지 않는다.
+
+알림을 누르면 기존 비공개 Drive 파일을 외부 브라우저/Drive 앱으로 연다. 필요하면 Google 로그인 후 APK를 내려받아 Android 설치 확인을 진행한다. 앱 내부에 Google 인증·토큰을 추가하지 않으며 APK 설치 권한도 추가하지 않는다. APK는 ARM64용이고 같은 앱 ID·서명을 유지한다. 이번 빌드는 자동 업데이트 알림 추가이며 앞서 보고된 buffered raw Backspace 경로는 아직 수정하지 않았다.
+
+배포 시 APK 검증 → 기존 Drive 파일 교체 및 재조회 → 공개 버전 JSON 갱신 및 재조회 순서로 처리한다. APK를 교체하기 전에 버전 번호를 먼저 올리지 않는다. JSON에는 schema, package_id, version, download_url만 기록한다. 다운로드 링크는 기존 Drive 파일로 고정 검증한다. 기본 build number 78, ARM64 versionCode 2078.

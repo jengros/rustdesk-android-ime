@@ -48,10 +48,10 @@ try {
     Set-Location -LiteralPath "$repoRoot\flutter"
     if (!$SkipChecks) {
         Run-Step 'pub-get' { & "$toolRoot\flutter\bin\flutter.bat" pub get }
-        Run-Step 'regression-tests' { & "$toolRoot\flutter\bin\flutter.bat" test --no-pub test/android_soft_keyboard_test.dart test/android_keyboard_panel_test.dart }
-        Run-Step 'analyze-personal' { & "$toolRoot\flutter\bin\flutter.bat" analyze --no-pub --no-fatal-infos --no-fatal-warnings lib/mobile/android_soft_keyboard.dart lib/mobile/android_keyboard_panel.dart lib/mobile/pages/remote_page.dart test/android_soft_keyboard_test.dart test/android_keyboard_panel_test.dart }
+        Run-Step 'regression-tests' { & "$toolRoot\flutter\bin\flutter.bat" test --no-pub test/android_soft_keyboard_test.dart test/android_keyboard_panel_test.dart test/personal_android_update_test.dart }
+        Run-Step 'analyze-personal' { & "$toolRoot\flutter\bin\flutter.bat" analyze --no-pub --no-fatal-infos --no-fatal-warnings lib/mobile/android_soft_keyboard.dart lib/mobile/android_keyboard_panel.dart lib/mobile/personal_android_update.dart lib/mobile/pages/connection_page.dart lib/mobile/pages/remote_page.dart test/android_soft_keyboard_test.dart test/android_keyboard_panel_test.dart test/personal_android_update_test.dart }
     }
-    Run-Step 'build-apk' { & "$toolRoot\flutter\bin\flutter.bat" build apk --no-pub --release --target-platform android-arm64 --split-per-abi --build-name 1.5.1-kyk.8 --build-number 77 -P 'personalBuild=true' -P "rustlsAndroidMavenDir=$env:ORG_GRADLE_PROJECT_rustlsAndroidMavenDir" }
+    Run-Step 'build-apk' { & "$toolRoot\flutter\bin\flutter.bat" build apk --no-pub --release --target-platform android-arm64 --split-per-abi --build-name 1.5.1-kyk.9 --build-number 78 -P 'personalBuild=true' -P "rustlsAndroidMavenDir=$env:ORG_GRADLE_PROJECT_rustlsAndroidMavenDir" }
     Set-Content -LiteralPath "$toolRoot\build-status.txt" -Value 'APK built'
 } finally {
     Set-Location -LiteralPath $repoRoot
