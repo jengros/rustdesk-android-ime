@@ -60,12 +60,6 @@ class _AndroidSoftKeyboardInputState extends State<AndroidSoftKeyboardInput> {
     super.dispose();
   }
 
-  void _reset() {
-    _previous = '';
-    _controller.value = const TextEditingValue(
-        selection: TextSelection.collapsed(offset: 0));
-  }
-
   void _onEdit() {
     final current = _controller.text;
     if (current == _previous) return;
@@ -79,7 +73,6 @@ class _AndroidSoftKeyboardInputState extends State<AndroidSoftKeyboardInput> {
       if (i > 0) widget.onEnter();
       if (lines[i].isNotEmpty) widget.onText(lines[i]);
     }
-    if (current.endsWith('\n')) _reset();
   }
 
   void _backspace() {
@@ -110,14 +103,9 @@ class _AndroidSoftKeyboardInputState extends State<AndroidSoftKeyboardInput> {
       if (down) _backspace();
       return KeyEventResult.handled;
     }
-    if (event.logicalKey == LogicalKeyboardKey.enter ||
-        event.logicalKey == LogicalKeyboardKey.numpadEnter) {
-      if (down) {
-        widget.onEnter();
-        _reset();
-      }
-      return KeyEventResult.handled;
-    }
+    // Let Android turn Enter into an editor newline. Send it only from
+    // _onEdit, and retain the buffer so a later full IME commit shares the
+    // same prefix instead of replaying the entire paragraph.
     return KeyEventResult.skipRemainingHandlers;
   }
 

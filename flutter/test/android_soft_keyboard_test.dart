@@ -53,7 +53,11 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
     expect(remote, '기abc 가');
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    tester.testTextInput.updateEditingValue(const TextEditingValue(
+        text: 'abc 가\n', selection: TextSelection.collapsed(offset: 6)));
+    await tester.pump();
     expect(remote, '기abc 가\n');
+    expect(remote.codeUnits.last, 10);
     await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
     expect(remote, '기abc 가');
   });
@@ -80,9 +84,59 @@ void main() {
     await tester.sendKeyUpEvent(LogicalKeyboardKey.backspace);
     expect(remote, 'abc');
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-    await tester.enterText(find.byType(TextField), '1');
+    tester.testTextInput.updateEditingValue(const TextEditingValue(
+        text: '\n', selection: TextSelection.collapsed(offset: 1)));
+    await tester.pump();
+    tester.testTextInput.updateEditingValue(const TextEditingValue(
+        text: '\n1', selection: TextSelection.collapsed(offset: 2)));
+    await tester.pump();
     expect(remote, 'abc\n1');
     await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
     expect(remoteKeys, 0);
   });
+  testWidgets('raw Enter and IME paragraph commits send one real newline',
+      (tester) async {
+    const sentence = 'abc 가나다 동해물과 백두산이';
+    final newline = String.fromCharCode(10);
+    for (final imeFirst in [false, true]) {
+      var remote = '';
+      await tester.pumpWidget(MaterialApp(home: Material(
+        key: ValueKey(imeFirst),
+        child: AndroidSoftKeyboardInput(
+          onText: (text) => remote += text,
+          onBackspace: () => remote = remote.characters.skipLast(1).join(),
+          onEnter: () => remote += newline,
+        ),
+      )));
+      await tester.pump();
+      await tester.enterText(find.byType(TextField), sentence);
+      void imeCommit() => tester.testTextInput.updateEditingValue(
+          TextEditingValue(text: '$sentence$newline',
+              selection: TextSelection.collapsed(
+                  offset: sentence.length + 1)));
+      if (imeFirst) imeCommit();
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      if (!imeFirst) imeCommit();
+      await tester.pump();
+      // Duplicate platform notifications carry the same complete paragraph.
+      imeCommit();
+      await tester.pump();
+      expect(remote, '$sentence$newline');
+      expect(remote.codeUnits.where((unit) => unit == 10).length, 1);
+      // A second intentional Enter and typing after it must still work.
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      tester.testTextInput.updateEditingValue(TextEditingValue(
+          text: '$sentence$newline$newline',
+          selection: TextSelection.collapsed(offset: sentence.length + 2)));
+      await tester.pump();
+      tester.testTextInput.updateEditingValue(TextEditingValue(
+          text: '$sentence$newline${newline}끝',
+          selection: TextSelection.collapsed(offset: sentence.length + 3)));
+      await tester.pump();
+      expect(remote, '$sentence$newline${newline}끝');
+      await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+      expect(remote, '$sentence$newline$newline');
+    }
+  });
+
 }
